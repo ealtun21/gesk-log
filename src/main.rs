@@ -19,7 +19,8 @@ enum GeskMode {
     MLog,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let gesk_mode = loop {
         match Select::new(
             "Please select logging mode:",
@@ -36,6 +37,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match gesk_mode {
         GeskMode::SLog => slog_main(true),
         GeskMode::TLog => tlog_main(),
-        GeskMode::MLog => mlog_main(),
+        GeskMode::MLog => Ok(mlog_main().await?),
     }
 }

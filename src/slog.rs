@@ -21,19 +21,19 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let port_path = loop {
         match Select::new(
-            "Select the port to read from",
+            "Select the port to read from:",
             options.clone().into_iter().map(|o| o.port_name).collect(),
         )
         .prompt()
         {
             Ok(k) => break k,
             Err(InquireError::OperationInterrupted) => return Ok(()),
-            Err(_) => return slog_main(false), // Restarts to check for more iterfaces.
+            Err(_) => return slog_main(true), // Restarts to check for more iterfaces.
         }
     };
 
     let baud = loop {
-        match CustomType::new("What is the baud rate?: ")
+        match CustomType::new("What is the baud rate?:")
             .with_error_message("Please type a valid number")
             .with_help_message("Type the baud rate you want to use")
             .prompt()
@@ -45,7 +45,7 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let output: Option<String> = loop {
-        match CustomType::new("What is the output file name?: ")
+        match CustomType::new("What is the output file name?:")
             .with_error_message("Please type a valid file name")
             .with_help_message(
                 "You may also give a path if you wish, esc to skip outputing to a file",
