@@ -1,20 +1,22 @@
 use crossterm::style::Stylize;
 use inquire::CustomType;
+use inquire::{InquireError, Select};
 use serialport::available_ports;
 use std::fs::OpenOptions;
-use std::io::{self, Write};
+use std::io::Write;
 use std::thread;
 use std::time::Duration;
-use inquire::{InquireError, Select};
 
 use crate::utils::generate_timestamp;
 
-pub fn slog_main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     let options = available_ports().expect("Failed to detect ports");
     if options.is_empty() {
-        eprintln!("No ports found, exiting!");
-        thread::sleep(Duration::from_secs(3));
-        return Ok(());
+        if init {
+            eprintln!("Waiting for serial interfaces...");
+        }
+        thread::sleep(Duration::from_millis(100));
+        return slog_main(false);
     }
 
     let port_path = loop {
@@ -26,7 +28,7 @@ pub fn slog_main() -> Result<(), Box<dyn std::error::Error>> {
         {
             Ok(k) => break k,
             Err(InquireError::OperationInterrupted) => return Ok(()),
-            Err(_) => eprintln!("{}", "Please select an option.".red().slow_blink()),
+            Err(_) => return slog_main(false), // Restarts to check for more iterfaces.
         }
     };
 
@@ -107,7 +109,6 @@ pub fn slog_main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
                     Err(e) => eprintln!("{e:?}"),
                 }
             }

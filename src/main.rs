@@ -1,12 +1,16 @@
+mod mlog;
 mod slog;
+mod tlog;
 mod utils;
+
+use mlog::mlog_main;
+use slog::slog_main;
+use tlog::tlog_main;
 
 use crossterm::style::Stylize;
 use enum_display_derive::{self, Display};
 use inquire::{InquireError, Select};
-use slog::slog_main;
 use std::fmt::Display;
-
 
 #[derive(Debug, Display)]
 enum GeskMode {
@@ -30,17 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     match gesk_mode {
-        GeskMode::SLog => slog_main(),
+        GeskMode::SLog => slog_main(true),
         GeskMode::TLog => tlog_main(),
         GeskMode::MLog => mlog_main(),
     }
-}
-
-
-fn mlog_main() -> Result<(), Box<dyn std::error::Error>> {
-    Ok(())
-}
-
-fn tlog_main() -> Result<(), Box<dyn std::error::Error>> {
-    Ok(())
 }
