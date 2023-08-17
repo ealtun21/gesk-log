@@ -2,8 +2,9 @@ use crossterm::style::Stylize;
 use inquire::CustomType;
 use inquire::{InquireError, Select};
 use serialport::available_ports;
-use std::fs::OpenOptions;
+use std::fs::{OpenOptions, create_dir_all};
 use std::io::Write;
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
 
@@ -86,11 +87,15 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                 eprintln!("Bytes are not valid UTF-8");
                             }
                             if let Some(ref file) = &output {
+                                if !Path::new("slog").exists() {
+                                    create_dir_all("slog").expect("Unable to create dir");
+                                }
+
                                 let mut file = match OpenOptions::new()
                                     .write(true)
                                     .append(true)
                                     .create(true)
-                                    .open(file)
+                                    .open(format!("slog/{file}"))
                                 {
                                     Ok(file) => file,
                                     Err(e) => {
