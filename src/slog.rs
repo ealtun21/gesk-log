@@ -19,17 +19,15 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
         return slog_main(false);
     }
 
-    let port_path = loop {
-        match Select::new(
-            "Select the port to read from:",
-            options.clone().into_iter().map(|o| o.port_name).collect(),
-        )
-        .prompt()
-        {
-            Ok(k) => break k,
-            Err(InquireError::OperationInterrupted) => return Ok(()),
-            Err(_) => return slog_main(true), // Restarts to check for more iterfaces.
-        }
+    let port_path = match Select::new(
+        "Select the port to read from:",
+        options.clone().into_iter().map(|o| o.port_name).collect(),
+    )
+    .prompt()
+    {
+        Ok(k) => k,
+        Err(InquireError::OperationInterrupted) => return Ok(()),
+        Err(_) => return slog_main(true), // Restarts to check for more iterfaces.
     };
 
     let baud = loop {

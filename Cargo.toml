@@ -14,7 +14,9 @@ serialport = "4.2.2"
 tokio = { version = "1.31.0", features = ["rt-multi-thread"] }
 rumqttc = "0.22.0"
 serde = { version = "1.0.183", features = ["serde_derive"] }
-serde_json = "1.0.104"
+serde_json = { version = "1.0.104", features = ["raw_value"] }
+rand = "0.8.5"
+regex = "1.9.3"
 
 
 [profile.release]
