@@ -137,7 +137,7 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                     .write(true)
                                     .append(true)
                                     .create(true)
-                                    .open(format!("slog/{file}"))
+                                    .open(format!("slog/{file}.txt"))
                                 {
                                     Ok(file) => file,
                                     Err(e) => {

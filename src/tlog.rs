@@ -142,7 +142,7 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                                     .write(true)
                                                     .append(true)
                                                     .create(true)
-                                                    .open(format!("tlog/{file}"))
+                                                    .open(format!("tlog/{file}.txt"))
                                                 {
                                                     Ok(file) => file,
                                                     Err(e) => {
