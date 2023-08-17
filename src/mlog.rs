@@ -258,7 +258,7 @@ fn get_id() -> String {
         }
     } {
         Some(ans) => ans,
-        None => format!("mlog-{}", rand::random::<u16>()),
+        None => "random".to_string(),
     }
 }
 
