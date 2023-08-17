@@ -73,14 +73,14 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     let baud = loop {
         match CustomType::new("What is the baud rate?:")
             .with_error_message("Please type a valid number")
-            .with_help_message("Type the baud rate you want to use")
-            .prompt()
+            .with_help_message("esc for default")
+            .prompt_skippable()
         {
             Ok(ans) => break ans,
             Err(InquireError::OperationInterrupted) => return Ok(()),
             Err(_) => eprintln!("{}", "Please type a correct value".red().slow_blink()),
         }
-    };
+    }.unwrap_or(115200);
 
     let output: Option<String> = loop {
         match CustomType::new("What is the output file name?:")
