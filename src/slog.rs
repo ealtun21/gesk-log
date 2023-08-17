@@ -80,7 +80,8 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
             Err(InquireError::OperationInterrupted) => return Ok(()),
             Err(_) => eprintln!("{}", "Please type a correct value".red().slow_blink()),
         }
-    }.unwrap_or(115200);
+    }
+    .unwrap_or(115200);
 
     let output: Option<String> = loop {
         match CustomType::new("What is the output file name?:")

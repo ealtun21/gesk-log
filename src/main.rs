@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match gesk_mode {
         GeskMode::SLog => slog_main(true),
-        GeskMode::TLog => tlog_main(),
+        GeskMode::TLog => tlog_main(true),
         GeskMode::MLog => Ok(mlog_main().await?),
     }
 }
