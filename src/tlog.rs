@@ -1,4 +1,9 @@
+#![allow(dead_code)]
+
 use std::{
+    fs::{create_dir_all, OpenOptions},
+    io::{self, Write},
+    path::Path,
     thread,
     time::{Duration, Instant},
 };
@@ -7,6 +12,8 @@ use anyhow::{anyhow, Result};
 use crossterm::style::Stylize;
 use inquire::{CustomType, InquireError, Select};
 use serialport::available_ports;
+
+use crate::utils::generate_timestamp;
 
 pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     let options = available_ports().expect("Failed to detect ports");
@@ -55,11 +62,22 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     }
     .unwrap_or(5);
 
+    let output: Option<String> = loop {
+        match CustomType::new("What is the output file name?:")
+            .with_error_message("Please type a valid file name")
+            .with_help_message("esc to skip outputing to a file")
+            .prompt_skippable()
+        {
+            Ok(ans) => break ans,
+            Err(InquireError::OperationInterrupted) => return Ok(()),
+            Err(_) => eprintln!("{}", "Please type a correct value".red().slow_blink()),
+        }
+    };
+
     match serialport::new(&port_path, baud).open() {
         Ok(mut port) => {
             let mut serial_buf: Vec<u8> = vec![0; 1000];
             let mut accumulated_data = Vec::new();
-            let mut tlogs: Vec<TLog> = Vec::new();
 
             // Introduce the timestamp variable
             let mut last_packet_detected: Option<Instant> = None;
@@ -89,7 +107,57 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                         .drain(start_pos..start_pos + payload_len + 5)
                                         .collect::<Vec<u8>>();
                                     match TLog::from_be_bytes(data_packet) {
-                                        Ok(tlog) => tlogs.push(tlog),
+                                        Ok(tlog) => {
+                                            let timestamp = generate_timestamp().into_bytes();
+
+                                            let colored_message = match tlog.payload_type {
+                                                PayloadType::Debug => format!("\x1b[0m\x1b[36m[Debug]\x1b[0m "), // Cyan color for Debug
+                                                PayloadType::Warning => format!("\x1b[0m\x1b[33m[Warning]\x1b[0m "), // Yellow color for Warning
+                                                PayloadType::Error => format!("\x1b[0m\x1b[31m[Error]\x1b[0m "), // Red color for Error
+                                                PayloadType::Unknown => format!("\x1b[0m\x1b[37m[Unknown]\x1b[0m "), // White color for Unknown
+                                            };
+
+                                            // Less resizing when using with_capacity
+                                            let mut data = Vec::with_capacity(
+                                                timestamp.len() + tlog.payload.len() + 1 + colored_message.len(),
+                                            );  
+                                            
+                                            data.extend_from_slice(&timestamp);
+                                            data.extend_from_slice(&colored_message.as_bytes());
+                                            data.extend_from_slice(&tlog.payload.as_bytes());
+                                            data.extend_from_slice(String::from("\n").as_bytes());
+
+                                            if let Ok(string) = std::str::from_utf8(&data) {
+                                                print!("{}", string);
+                                            } else {
+                                                eprintln!("Bytes are not valid UTF-8");
+                                            }
+                                            if let Some(ref file) = &output {
+                                                if !Path::new("tlog").exists() {
+                                                    create_dir_all("tlog")
+                                                        .expect("Unable to create dir");
+                                                }
+
+                                                let mut file = match OpenOptions::new()
+                                                    .write(true)
+                                                    .append(true)
+                                                    .create(true)
+                                                    .open(format!("tlog/{file}"))
+                                                {
+                                                    Ok(file) => file,
+                                                    Err(e) => {
+                                                        eprintln!(
+                                                            "Failed to open \"{}\". Error: {}",
+                                                            output.as_ref().unwrap().as_str(),
+                                                            e
+                                                        );
+                                                        ::std::process::exit(1);
+                                                    }
+                                                };
+                                                file.write_all(&data).unwrap();
+                                                file.flush().unwrap();
+                                            }
+                                        }
                                         Err(e) => eprintln!("Error parsing TLog: {}", e),
                                     }
                                 } else {
@@ -113,6 +181,8 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
+                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+                    Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => return tlog_main(true), // Restart
                     Err(e) => eprintln!("{:?}", e),
                 }
 
@@ -125,7 +195,6 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum PayloadType {
@@ -162,7 +231,7 @@ impl TLog {
 
         let payload_len = (self.payload.len() as u16).to_be_bytes();
         Ok([
-            vec![0x1A, payload_len[0], payload_len[1], 0x1, p_type],
+            vec![0x1A, payload_len[0], payload_len[1], p_type, 0x1],
             self.payload.as_bytes().to_vec(),
         ]
         .concat())
@@ -173,8 +242,20 @@ impl TLog {
         if data_packet.is_empty() {
             return Err(anyhow!("Input is empty"));
         }
-        if data_packet[0] != 0x1A || data_packet[3] != 0x1 {
-            return Err(anyhow!("Invalid or unsupported input format"));
+        if data_packet[0] != 0x1A || data_packet[4] != 0x1 {
+            eprintln!(
+                "Invalid packet: {:?}",
+                data_packet
+                    .iter()
+                    .map(|byte| format!("{:02x}", byte))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            );
+            return Err(anyhow!(
+                "Invalid or unsupported input format, Byte[0]:{:X}, Byte[3]:{:X}",
+                data_packet[0],
+                data_packet[3]
+            ));
         }
 
         let payload_len = u16::from_be_bytes([data_packet[1], data_packet[2]]) as usize;
@@ -184,7 +265,7 @@ impl TLog {
             return Err(anyhow!("Inconsistent data packet length"));
         }
 
-        let payload_type = match data_packet[4] {
+        let payload_type = match data_packet[3] {
             0 => PayloadType::Debug,
             1 => PayloadType::Warning,
             2 => PayloadType::Error,

@@ -4,7 +4,7 @@ use inquire::CustomType;
 use inquire::{InquireError, Select};
 use serialport::available_ports;
 use std::fs::{create_dir_all, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
@@ -87,7 +87,7 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
         match CustomType::new("What is the output file name?:")
             .with_error_message("Please type a valid file name")
             .with_help_message(
-                "You may also give a path if you wish, esc to skip outputing to a file",
+                "esc to skip outputing to a file",
             )
             .prompt_skippable()
         {
@@ -154,6 +154,8 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
+                    Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
+                    Err(ref e) if e.kind() == io::ErrorKind::BrokenPipe => return slog_main(true), // Restart
                     Err(e) => eprintln!("{e:?}"),
                 }
             }
