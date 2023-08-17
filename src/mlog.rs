@@ -1,4 +1,3 @@
-use chrono::{Datelike, Local, Timelike};
 use crossterm::style::Stylize;
 use inquire::{
     validator::Validation, Confirm, CustomType, InquireError, Password, PasswordDisplayMode,
@@ -10,12 +9,14 @@ use rumqttc::{
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{File, OpenOptions},
+    fs::{File, OpenOptions, create_dir_all},
     io::{self, Write, Read},
-    time::Duration,
+    time::Duration, path::Path,
 };
 
 use serde_json::value::RawValue;
+
+use crate::utils::generate_timestamp;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PartialArgsFromFile {
@@ -405,12 +406,16 @@ async fn initialize_files_and_subscriptions(
         if client.subscribe(topic, QoS::ExactlyOnce).await.is_err() {
             eprintln!("Failed to subscribe to {topic}");
         }
+       
+        if !Path::new("mlog").exists() {
+            create_dir_all("mlog").expect("Unable to create dir");
+        }
         files.insert(
             topic.clone(),
             OpenOptions::new()
                 .append(true)
                 .create(true)
-                .open(format!("{topic}.txt"))
+                .open(format!("mlog/{topic}.txt"))
                 .expect("Unable to create files"),
         );
     }
@@ -494,21 +499,3 @@ fn write_to_stdout(timestamp: &Vec<u8>, data: &Publish) {
     io::stdout().write_all(&res).unwrap();
     ::std::io::stdout().flush().unwrap();
 }
-
-fn generate_timestamp() -> String {
-    let now = Local::now();
-
-    format!(
-        "{RESET}[{GREEN}{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:03}{RESET}] ",
-        now.year(),
-        now.month(),
-        now.day(),
-        now.hour(),
-        now.minute(),
-        now.second(),
-        now.timestamp_subsec_millis(),
-        RESET = "\x1b[0m",
-        GREEN = "\x1b[32m",
-    )
-}
-
