@@ -76,7 +76,7 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     match serialport::new(&port_path, baud).open() {
         Ok(mut port) => {
-            let mut serial_buf: Vec<u8> = vec![0; 1000];
+            let mut serial_buf = [0; 1];
             let mut accumulated_data = Vec::new();
 
             // Introduce the timestamp variable
@@ -84,9 +84,9 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
             let time_out_duration: Duration = Duration::from_secs(time_out);
 
             loop {
-                match port.read(serial_buf.as_mut_slice()) {
-                    Ok(t) => {
-                        accumulated_data.extend_from_slice(&serial_buf[..t]);
+                match port.read_exact(&mut serial_buf) {
+                    Ok(_) => {
+                        accumulated_data.extend_from_slice(&serial_buf[..]);
 
                         while let Some(start_pos) = accumulated_data.iter().position(|&x| x == 0x1A)
                         {

@@ -103,14 +103,14 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     match port {
         Ok(mut port) => {
-            let mut serial_buf: Vec<u8> = vec![0; 1000];
+            let mut serial_buf = [0; 1];
             println!("Receiving data on {} at {} baud:", &port_path, baud);
             let mut accumulated_data = Vec::new();
 
             loop {
                 match port.read(serial_buf.as_mut_slice()) {
-                    Ok(t) => {
-                        accumulated_data.extend_from_slice(&serial_buf[..t]);
+                    Ok(_) => {
+                        accumulated_data.extend_from_slice(&serial_buf[..]);
 
                         // Split the accumulated data by newlines
                         while let Some(pos) =
