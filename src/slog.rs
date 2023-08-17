@@ -1,8 +1,9 @@
 use crossterm::style::Stylize;
+use inquire::validator::Validation;
 use inquire::CustomType;
 use inquire::{InquireError, Select};
 use serialport::available_ports;
-use std::fs::{OpenOptions, create_dir_all};
+use std::fs::{create_dir_all, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use std::thread;
@@ -29,6 +30,44 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
         Ok(k) => k,
         Err(InquireError::OperationInterrupted) => return Ok(()),
         Err(_) => return slog_main(true), // Restarts to check for more iterfaces.
+    };
+    let split_char_result: Option<String> = loop {
+        match CustomType::new("Select the split char:")
+            .with_help_message("esc for default")
+            .with_validator(|a: &String| {
+                if let Some(escaped_char) = process_escape_sequence(a) {
+                    if escaped_char.is_ascii() {
+                        return Ok(Validation::Valid);
+                    }
+                }
+
+                if a.len() == 1 && a.chars().next().unwrap().is_ascii() {
+                    Ok(Validation::Valid)
+                } else {
+                    Ok(Validation::Invalid(inquire::validator::ErrorMessage::from(
+                        "Split char must be ascii or a valid escape sequence".to_owned(),
+                    )))
+                }
+            })
+            .prompt_skippable()
+        {
+            Ok(k) => break k,
+            Err(InquireError::OperationInterrupted) => return Ok(()),
+            Err(_) => {
+                eprintln!("{}", "Please type a correct value".red().slow_blink());
+                continue;
+            }
+        }
+    };
+
+    let split_char: char = if let Some(k) = split_char_result {
+        if k.len() == 1 {
+            k.chars().next().unwrap()
+        } else {
+            process_escape_sequence(&k).unwrap()
+        }
+    } else {
+        '\n'
     };
 
     let baud = loop {
@@ -73,7 +112,9 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                         accumulated_data.extend_from_slice(&serial_buf[..t]);
 
                         // Split the accumulated data by newlines
-                        while let Some(pos) = accumulated_data.iter().position(|&x| x == b'\n') {
+                        while let Some(pos) =
+                            accumulated_data.iter().position(|&x| x == split_char as u8)
+                        {
                             let line = accumulated_data.drain(..=pos).collect::<Vec<u8>>();
                             let timestamp = generate_timestamp().into_bytes();
 
@@ -120,5 +161,27 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Failed to open \"{}\". Error: {}", &port_path, e);
             ::std::process::exit(1);
         }
+    }
+}
+
+fn process_escape_sequence(s: &str) -> Option<char> {
+    match s {
+        "\'" => Some('\''),
+        "\\\"" => Some('\"'),
+        "\\\\" => Some('\\'),
+        "\\n" => Some('\n'),
+        "\\r" => Some('\r'),
+        "\\t" => Some('\t'),
+        "\\b" => Some('\u{0008}'), // backspace
+        "\\f" => Some('\u{000C}'), // form feed
+        "\\v" => Some('\u{000B}'), // vertical tab
+        "\\0" => Some('\u{0000}'), // null character
+        _ if s.starts_with("\\x") => {
+            let hex_part = &s[2..];
+            u8::from_str_radix(hex_part, 16)
+                .ok()
+                .map(|byte| byte as char)
+        }
+        _ => None,
     }
 }

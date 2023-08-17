@@ -9,9 +9,10 @@ use rumqttc::{
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{File, OpenOptions, create_dir_all},
-    io::{self, Write, Read},
-    time::Duration, path::Path,
+    fs::{create_dir_all, File, OpenOptions},
+    io::{self, Read, Write},
+    path::Path,
+    time::Duration,
 };
 
 use serde_json::value::RawValue;
@@ -91,8 +92,8 @@ struct Args {
 fn clean_str(s: &str) -> String {
     let reserved_chars = "!*'();:@&=+$,/?#[]";
     s.chars()
-     .filter(|&c| !reserved_chars.contains(c) && c != '\\' && c != '"')
-     .collect()
+        .filter(|&c| !reserved_chars.contains(c) && c != '\\' && c != '"')
+        .collect()
 }
 
 impl Args {
@@ -103,51 +104,98 @@ impl Args {
 
         let broker = match args_from_file.as_ref().map(|a| clean_str(a.broker.get())) {
             Some(val) if !val.is_empty() => val,
-            _ => {amount_of_changes+=1; get_broker()},
+            _ => {
+                amount_of_changes += 1;
+                get_broker()
+            }
         };
 
-        let port = match args_from_file.as_ref().map(|a| a.port.get()).and_then(|s| s.parse::<u16>().ok()) {
+        let port = match args_from_file
+            .as_ref()
+            .map(|a| a.port.get())
+            .and_then(|s| s.parse::<u16>().ok())
+        {
             Some(val) => val,
-            _ => {amount_of_changes+=1; get_port()},
+            _ => {
+                amount_of_changes += 1;
+                get_port()
+            }
         };
 
         let id = match args_from_file.as_ref().map(|a| clean_str(a.id.get())) {
             Some(val) if !val.is_empty() => val.to_string(),
-            _ => {amount_of_changes+=1; get_id()},
+            _ => {
+                amount_of_changes += 1;
+                get_id()
+            }
         };
 
-        let topics = match args_from_file.as_ref().map(|a| a.topics.get()).and_then(|s| serde_json::from_str::<Vec<String>>(s).ok()) {
+        let topics = match args_from_file
+            .as_ref()
+            .map(|a| a.topics.get())
+            .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
+        {
             Some(val) if !val.is_empty() => val,
-            _ => {amount_of_changes+=1;get_topics()},
-        };
-
-        let keep_alive = match args_from_file.as_ref().map(|a| a.keep_alive.get()).and_then(|s| s.parse::<u64>().ok()) {
-            Some(val) => val,
-            _ => {amount_of_changes+=1;get_keep_alieve()},
-        };
-
-        let inflight = args_from_file.as_ref().and_then(|a| {
-            let str_val = a.inflight.get();
-            if str_val == "null" {
-                return None;
+            _ => {
+                amount_of_changes += 1;
+                get_topics()
             }
-            str_val.parse::<u16>().ok()
-        }).or_else(|| {
-            if args_from_file.as_ref().map(|a| a.inflight.get()) == Some("null") {
-                None
-            } else {
-                {amount_of_changes+=1;get_inflight()}
-            }
-        });
-
-        let auth = match args_from_file.as_ref().map(|a| a.auth.get()).and_then(|s| serde_json::from_str::<Vec<String>>(s).ok()) {
-            Some(val) => val,
-            _ => {amount_of_changes+=1;get_credentials()},
         };
 
-        let clean_session = match args_from_file.as_ref().map(|a| a.clean_session.get()).and_then(|s| s.parse::<bool>().ok()) {
+        let keep_alive = match args_from_file
+            .as_ref()
+            .map(|a| a.keep_alive.get())
+            .and_then(|s| s.parse::<u64>().ok())
+        {
             Some(val) => val,
-            _ => {amount_of_changes+=1;get_clean_session()},
+            _ => {
+                amount_of_changes += 1;
+                get_keep_alieve()
+            }
+        };
+
+        let inflight = args_from_file
+            .as_ref()
+            .and_then(|a| {
+                let str_val = a.inflight.get();
+                if str_val == "null" {
+                    return None;
+                }
+                str_val.parse::<u16>().ok()
+            })
+            .or_else(|| {
+                if args_from_file.as_ref().map(|a| a.inflight.get()) == Some("null") {
+                    None
+                } else {
+                    {
+                        amount_of_changes += 1;
+                        get_inflight()
+                    }
+                }
+            });
+
+        let auth = match args_from_file
+            .as_ref()
+            .map(|a| a.auth.get())
+            .and_then(|s| serde_json::from_str::<Vec<String>>(s).ok())
+        {
+            Some(val) => val,
+            _ => {
+                amount_of_changes += 1;
+                get_credentials()
+            }
+        };
+
+        let clean_session = match args_from_file
+            .as_ref()
+            .map(|a| a.clean_session.get())
+            .and_then(|s| s.parse::<bool>().ok())
+        {
+            Some(val) => val,
+            _ => {
+                amount_of_changes += 1;
+                get_clean_session()
+            }
         };
 
         let mut res = Self {
@@ -167,14 +215,15 @@ impl Args {
             }
         }
 
-        if res.id == "random" {res.id=format!("mlog-{}", rand::random::<u16>())};
+        if res.id == "random" {
+            res.id = format!("mlog-{}", rand::random::<u16>())
+        };
 
         println!("Loaded State: \n{:#?}", &res);
 
         res
     }
 }
-
 
 fn save_to_json(json_ver: String) {
     let write = loop {
@@ -212,8 +261,9 @@ fn save_to_json(json_ver: String) {
 fn get_clean_session() -> bool {
     loop {
         match Confirm::new("Do you want a clean session?")
-        .with_default(false)
-        .prompt() {
+            .with_default(false)
+            .prompt()
+        {
             Ok(ans) => break ans,
             Err(InquireError::OperationInterrupted) => ::std::process::exit(1),
             Err(_) => eprintln!("{}", "Please type a correct value".red().slow_blink()),
@@ -265,9 +315,11 @@ fn get_id() -> String {
 
 fn get_port() -> u16 {
     loop {
-        match CustomType::new("Enter the port on which the broker is expected to listen for incoming connections:")
-            .with_error_message("Please type a valid port")
-            .prompt()
+        match CustomType::new(
+            "Enter the port on which the broker is expected to listen for incoming connections:",
+        )
+        .with_error_message("Please type a valid port")
+        .prompt()
         {
             Ok(ans) => break ans,
             Err(InquireError::OperationInterrupted) => ::std::process::exit(1),
@@ -277,7 +329,6 @@ fn get_port() -> u16 {
 }
 
 fn get_broker() -> String {
-
     let validator = |input: &String| {
         if input.trim().is_empty() {
             Ok(Validation::Invalid("Input must not be empty".into()))
@@ -296,7 +347,9 @@ fn get_broker() -> String {
             Err(InquireError::OperationInterrupted) => ::std::process::exit(1),
             Err(_) => eprintln!("{}", "Please type a correct value".red().slow_blink()),
         }
-    }.trim().to_owned()
+    }
+    .trim()
+    .to_owned()
 }
 
 fn get_topics() -> Vec<String> {
@@ -406,7 +459,7 @@ async fn initialize_files_and_subscriptions(
         if client.subscribe(topic, QoS::ExactlyOnce).await.is_err() {
             eprintln!("Failed to subscribe to {topic}");
         }
-       
+
         if !Path::new("mlog").exists() {
             create_dir_all("mlog").expect("Unable to create dir");
         }
