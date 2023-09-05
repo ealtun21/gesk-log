@@ -31,8 +31,8 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
             .clone()
             .into_iter()
             .map(|o| {
-                if o.port_name.starts_with("/sys/class/") {
-                    o.port_name.replace("/sys/class", "/dev/")
+                if o.port_name.starts_with("/sys/class/tty/") {
+                    o.port_name.replace("/sys/class/tty/", "/dev/")
                 } else {
                     o.port_name
                 }
