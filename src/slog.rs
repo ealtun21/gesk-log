@@ -23,7 +23,17 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let port_path = match Select::new(
         "Select the port to read from:",
-        options.clone().into_iter().map(|o| o.port_name).collect(),
+        options
+            .clone()
+            .into_iter()
+            .map(|o| {
+                if o.port_name.starts_with("/sys/class/") {
+                    o.port_name.replace("/sys/class", "/dev/")
+                } else {
+                    o.port_name
+                }
+            })
+            .collect(),
     )
     .prompt()
     {
@@ -86,9 +96,7 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
     let output: Option<String> = loop {
         match CustomType::new("What is the output file name?:")
             .with_error_message("Please type a valid file name")
-            .with_help_message(
-                "esc to skip outputing to a file",
-            )
+            .with_help_message("esc to skip outputing to a file")
             .prompt_skippable()
         {
             Ok(ans) => break ans,

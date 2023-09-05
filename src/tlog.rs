@@ -27,7 +27,17 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let port_path = match Select::new(
         "Select the port to read from:",
-        options.clone().into_iter().map(|o| o.port_name).collect(),
+        options
+            .clone()
+            .into_iter()
+            .map(|o| {
+                if o.port_name.starts_with("/sys/class/") {
+                    o.port_name.replace("/sys/class", "/dev/")
+                } else {
+                    o.port_name
+                }
+            })
+            .collect(),
     )
     .prompt()
     {
@@ -111,17 +121,28 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                             let timestamp = generate_timestamp().into_bytes();
 
                                             let colored_message = match tlog.payload_type {
-                                                PayloadType::Debug => format!("\x1b[0m\x1b[36m[Debug]\x1b[0m "), // Cyan color for Debug
-                                                PayloadType::Warning => format!("\x1b[0m\x1b[33m[Warning]\x1b[0m "), // Yellow color for Warning
-                                                PayloadType::Error => format!("\x1b[0m\x1b[31m[Error]\x1b[0m "), // Red color for Error
-                                                PayloadType::Unknown => format!("\x1b[0m\x1b[37m[Unknown]\x1b[0m "), // White color for Unknown
+                                                PayloadType::Debug => {
+                                                    format!("\x1b[0m\x1b[36m[Debug]\x1b[0m ")
+                                                } // Cyan color for Debug
+                                                PayloadType::Warning => {
+                                                    format!("\x1b[0m\x1b[33m[Warning]\x1b[0m ")
+                                                } // Yellow color for Warning
+                                                PayloadType::Error => {
+                                                    format!("\x1b[0m\x1b[31m[Error]\x1b[0m ")
+                                                } // Red color for Error
+                                                PayloadType::Unknown => {
+                                                    format!("\x1b[0m\x1b[37m[Unknown]\x1b[0m ")
+                                                } // White color for Unknown
                                             };
 
                                             // Less resizing when using with_capacity
                                             let mut data = Vec::with_capacity(
-                                                timestamp.len() + tlog.payload.len() + 1 + colored_message.len(),
-                                            );  
-                                            
+                                                timestamp.len()
+                                                    + tlog.payload.len()
+                                                    + 1
+                                                    + colored_message.len(),
+                                            );
+
                                             data.extend_from_slice(&timestamp);
                                             data.extend_from_slice(&colored_message.as_bytes());
                                             data.extend_from_slice(&tlog.payload.as_bytes());
