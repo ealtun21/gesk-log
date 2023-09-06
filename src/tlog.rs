@@ -122,16 +122,16 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
 
                                             let colored_message = match tlog.payload_type {
                                                 PayloadType::Debug => {
-                                                    format!("\x1b[0m\x1b[36m[Debug]\x1b[0m ")
+                                                    "\x1b[0m\x1b[36m[Debug]\x1b[0m ".to_string()
                                                 } // Cyan color for Debug
                                                 PayloadType::Warning => {
-                                                    format!("\x1b[0m\x1b[33m[Warning]\x1b[0m ")
+                                                    "\x1b[0m\x1b[33m[Warning]\x1b[0m ".to_string()
                                                 } // Yellow color for Warning
                                                 PayloadType::Error => {
-                                                    format!("\x1b[0m\x1b[31m[Error]\x1b[0m ")
+                                                    "\x1b[0m\x1b[31m[Error]\x1b[0m ".to_string()
                                                 } // Red color for Error
                                                 PayloadType::Unknown => {
-                                                    format!("\x1b[0m\x1b[37m[Unknown]\x1b[0m ")
+                                                    "\x1b[0m\x1b[37m[Unknown]\x1b[0m ".to_string()
                                                 } // White color for Unknown
                                             };
 
@@ -144,8 +144,8 @@ pub fn tlog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                                             );
 
                                             data.extend_from_slice(&timestamp);
-                                            data.extend_from_slice(&colored_message.as_bytes());
-                                            data.extend_from_slice(&tlog.payload.as_bytes());
+                                            data.extend_from_slice(colored_message.as_bytes());
+                                            data.extend_from_slice(tlog.payload.as_bytes());
                                             data.extend_from_slice(String::from("\n").as_bytes());
 
                                             if let Ok(string) = std::str::from_utf8(&data) {

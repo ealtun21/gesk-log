@@ -124,12 +124,15 @@ pub fn slog_main(init: bool) -> Result<(), Box<dyn std::error::Error>> {
                         while let Some(pos) =
                             accumulated_data.iter().position(|&x| x == split_char as u8)
                         {
-                            let line = accumulated_data.drain(..=pos).collect::<Vec<u8>>();
+                            let mut line = accumulated_data.drain(..=pos).collect::<Vec<u8>>();
+                            line.pop();
+
                             let timestamp = generate_timestamp().into_bytes();
 
-                            let mut data = Vec::with_capacity(timestamp.len() + line.len());
+                            let mut data = Vec::with_capacity(timestamp.len() + line.len() + 1);
                             data.extend_from_slice(&timestamp);
                             data.extend_from_slice(&line);
+                            data.extend_from_slice(String::from("\n").as_bytes());
 
                             if let Ok(string) = std::str::from_utf8(&data) {
                                 print!("{}", string);
