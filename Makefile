@@ -16,7 +16,10 @@ all: $(RUST_TARGETS)
 $(RUST_TARGETS):
 	@echo "Building for target: $@"
 	@cross build --release --target=$@
-	@if [ "$@" = "x86_64-pc-windows-gnu" ]; then \
+	@if [ -f "target/$@/release/gesk-log" ]; then \
+		cp target/$@/release/gesk-log gesk-log_$@; \
+	fi
+	@if [ -f "target/$@/release/gesk-log.exe" ]; then \
 		cp target/$@/release/gesk-log.exe gesk-log_$@.exe; \
 	fi
 
@@ -26,4 +29,3 @@ clean:
 	@rm -rf target
 
 .PHONY: all clean $(RUST_TARGETS)
-
